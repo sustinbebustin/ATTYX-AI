@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 import { NavigationDock } from '../components/NavigationDock';
@@ -6,11 +6,14 @@ import { TasksView } from '../components/views/TasksView';
 import { PipelineView } from '../components/views/PipelineView';
 import { ReportingView } from '../components/views/ReportingView';
 import { useAppStore } from '../stores/appStore';
+import Login from '../components/auth/Login';
+import Head from 'next/head';
+import { Session } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  'https://rdgnjccyntmolhdizbhj.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZ25qY2N5bnRtb2xoZGl6YmhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzczNTI0MzYsImV4cCI6MjA1MjkyODQzNn0.ik_rOz8YxhsPnExPac-YxErjiTvGVnrWryDWkt_D7UQ'
-);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface Message {
   id: string;
@@ -20,6 +23,21 @@ interface Message {
 }
 
 export default function Dashboard() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+  }, []);
+
+
   // Global state
   const { 
     activeApp,
@@ -140,6 +158,24 @@ export default function Dashboard() {
         );
     }
   };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!session) {
+    return (
+      <>
+        <Head>
+          <title>Attyx AI - Login</title>
+          <meta name="description" content="Attyx AI Login" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <link rel="icon" href="/favicon.ico" />
+        </Head>
+        <Login />
+      </>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">

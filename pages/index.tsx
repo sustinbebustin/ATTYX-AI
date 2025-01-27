@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback, useState, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 import { NavigationDock } from '../components/NavigationDock';
@@ -9,6 +9,8 @@ import { useAppStore } from '../stores/appStore';
 import Login from '../components/auth/Login';
 import Head from 'next/head';
 import { Session } from '@supabase/supabase-js';
+
+const API_ENDPOINT = 'http://localhost:8001/api/attyx-ai-agent';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -35,6 +37,24 @@ export default function Dashboard() {
     supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
+
+    const messagesSubscription = supabase
+      .channel('messages')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          if (payload.new) {
+            const newMessage = payload.new.message;
+            setMessages((prevMessages) => [...prevMessages, newMessage]);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(messagesSubscription);
+    };
   }, []);
 
 
@@ -100,17 +120,16 @@ export default function Dashboard() {
     setMessages(prev => [...prev, newMessage]);
 
     try {
-      const response = await fetch('/api/sales-assistant', {
+      const response = await fetch(API_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           query: taskInput,
-          user_id: "NA",
+          user_id: session?.user?.id || 'NA',
           request_id: uuidv4(),
           session_id: sessionId,
-          current_view: activeApp
         })
       });
 
@@ -129,7 +148,7 @@ export default function Dashboard() {
       setIsLoading(false);
       setTaskInput('');
     }
-  }, [taskInput, sessionId, activeApp, isLoading, setTaskInput]);
+  }, [taskInput, sessionId, activeApp, isLoading, setTaskInput, session]);
 
   // Render active view
   const renderActiveView = () => {

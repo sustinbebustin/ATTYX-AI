@@ -26,7 +26,7 @@ export const useAppStore = create<AppStore>()(
       activeApp: null,
       taskInput: '',
       chatWidth: 440,
-      isChatOpen: false,
+      isChatOpen: true,
 
       // Actions
       setActiveApp: (app: AppView) => set({ activeApp: app }),
